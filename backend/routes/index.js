@@ -5,6 +5,7 @@ import authRouter from "./authRouter.js";
 import userRouter from "./userRouter.js";
 import kycRouter from "./kycRouter.js";
 import paymentRouter from "./paymentRouter.js";
+import paymentRequestRouter from "./paymentRequestRouter.js";
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use("/auth", authRouter);
 router.use("/user", userRouter);
 router.use("/kyc", kycRouter);
 router.use("/payment", paymentRouter);
+router.use("/paymentRequest", paymentRequestRouter);
 
 export default router;
