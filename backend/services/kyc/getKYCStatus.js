@@ -1,5 +1,5 @@
-import User from "../../models/User.js";
 import KYC from "../../models/KYC.js";
+import User from "../../models/User.js";
 
 export const getUserKYCStatus = async (userId) => {
   const user = await User.findById(userId).select("kycVerified");
@@ -9,18 +9,26 @@ export const getUserKYCStatus = async (userId) => {
     throw error;
   }
 
-  const kyc = await KYC.findOne({ userId });
+  const kyc = await KYC.findOne({ userId }).sort({ createdAt: -1 });
 
   let status = "not_submitted";
-  if (kyc) {
-    status = kyc.status;
-  } else if (user.kycVerified) {
+  let kycDetails = null;
+
+  if (user.kycVerified) {
     status = "approved";
+  } else if (kyc) {
+    status = kyc.status;
+    kycDetails = {
+      submittedAt: kyc.submittedAt,
+      documentType: kyc.documentType,
+      status: kyc.status,
+      remarks: kyc.remarks,
+    };
   }
 
   return {
     status,
     kycVerified: user.kycVerified,
-    kycDetails: kyc || null,
+    kycDetails,
   };
 };
