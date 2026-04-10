@@ -1,6 +1,9 @@
 import PaymentRequest from "../../models/PaymentRequest.js";
+import Transaction from "../../models/Transaction.js";
 import User from "../../models/User.js";
 import { sendSSEUpdate } from "../sse.js";
+
+const PAYMENT_REQUEST_CHARGE_RATE = 0.03;
 
 export const payRequest = async (userId, requestId) => {
   // Find payment request
@@ -28,6 +31,12 @@ export const payRequest = async (userId, requestId) => {
     throw error;
   }
 
+  if (payer.email !== paymentRequest.recipientEmail) {
+    const error = new Error("You are not authorized to pay this request");
+    error.statusCode = 403;
+    throw error;
+  }
+
   // Check balance
   if (payer.balance < paymentRequest.amount) {
     const error = new Error("Insufficient balance");
@@ -35,12 +44,32 @@ export const payRequest = async (userId, requestId) => {
     throw error;
   }
 
+  const charge = Number(
+    (paymentRequest.amount * PAYMENT_REQUEST_CHARGE_RATE).toFixed(2),
+  );
+  const netAmountReceived = Number((paymentRequest.amount - charge).toFixed(2));
+
   // Update balances
   payer.balance -= paymentRequest.amount;
-  requester.balance += paymentRequest.amount;
+  requester.balance += netAmountReceived;
 
   // Mark request as paid
   paymentRequest.status = "paid";
+  paymentRequest.charge = charge;
+  paymentRequest.netAmountReceived = netAmountReceived;
+
+  const transaction = await Transaction.create({
+    sender: payer._id,
+    receiver: requester._id,
+    amount: paymentRequest.amount,
+    charge,
+    fromCurrency: "INR",
+    toCurrency: "INR",
+    convertedAmount: netAmountReceived,
+    description: paymentRequest.note || "Payment request payment",
+    status: "completed",
+    isFraud: false,
+  });
 
   // Save all changes
   await payer.save();
@@ -55,8 +84,10 @@ export const payRequest = async (userId, requestId) => {
       type: "payment_request_paid",
       from: payer.name,
       fromEmail: payer.email,
-      amount: paymentRequest.amount,
-      message: `${payer.name} paid your payment request of ₹${paymentRequest.amount}`,
+      amount: netAmountReceived,
+      requestedAmount: paymentRequest.amount,
+      charge,
+      message: `${payer.name} paid your request of ₹${paymentRequest.amount}. Charge: ₹${charge}, received: ₹${netAmountReceived}`,
     },
     "payment_request_paid",
   ).catch((err) => {
@@ -73,7 +104,9 @@ export const payRequest = async (userId, requestId) => {
       to: requester.name,
       toEmail: requester.email,
       amount: paymentRequest.amount,
-      message: `Payment request of ₹${paymentRequest.amount} to ${requester.name} confirmed`,
+      charge,
+      netAmountReceived,
+      message: `Payment request of ₹${paymentRequest.amount} to ${requester.name} confirmed (charge: ₹${charge}, recipient receives: ₹${netAmountReceived})`,
     },
     "payment_request_confirmed",
   ).catch((err) => {
@@ -84,6 +117,9 @@ export const payRequest = async (userId, requestId) => {
 
   return {
     message: "Payment successful",
+    charge,
+    netAmountReceived,
+    transactionId: transaction._id,
     paymentRequest,
   };
 };

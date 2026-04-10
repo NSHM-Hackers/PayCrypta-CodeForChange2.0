@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import axios from "../utils/axiosConfig";
 import { useNavigate, Link } from "react-router-dom";
 
+const PAYMENT_REQUEST_CHARGE_RATE = 0.03;
+
 function RequestPayment() {
   const navigate = useNavigate();
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -78,7 +80,7 @@ function RequestPayment() {
 
       fetchSentRequests();
       fetchReceivedRequests();
-      
+
       setTimeout(() => setMessage(""), 3000);
     } catch (error) {
       console.error(error);
@@ -93,11 +95,15 @@ function RequestPayment() {
       setLoading(true);
       setMessage("");
 
-      await axios.post(`/paymentRequest/pay/${id}`);
-      setMessage("✅ Payment successful!");
+      const res = await axios.post(`/paymentRequest/pay/${id}`);
+      const charge = Number(res.data?.charge || 0);
+      const netAmountReceived = Number(res.data?.netAmountReceived || 0);
+      setMessage(
+        `✅ Payment successful! Charge: ${formatCurrency(charge)}, recipient receives: ${formatCurrency(netAmountReceived)}`,
+      );
       fetchReceivedRequests();
       fetchSentRequests();
-      
+
       setTimeout(() => setMessage(""), 3000);
     } catch (error) {
       console.error(error);
@@ -154,6 +160,18 @@ function RequestPayment() {
     }).format(amount || 0);
   };
 
+  const getCharge = (rawAmount) => {
+    const numericAmount = Number(rawAmount);
+    if (Number.isNaN(numericAmount) || numericAmount <= 0) return 0;
+    return Number((numericAmount * PAYMENT_REQUEST_CHARGE_RATE).toFixed(2));
+  };
+
+  const getNetAmountReceived = (rawAmount) => {
+    const numericAmount = Number(rawAmount);
+    if (Number.isNaN(numericAmount) || numericAmount <= 0) return 0;
+    return Number((numericAmount - getCharge(numericAmount)).toFixed(2));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -194,13 +212,12 @@ function RequestPayment() {
 
         {/* Message Alert */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg border-l-4 animate-shake ${
-            message.startsWith("✅") 
-              ? "bg-green-50 border-green-500 text-green-700" 
+          <div className={`mb-6 p-4 rounded-lg border-l-4 animate-shake ${message.startsWith("✅")
+              ? "bg-green-50 border-green-500 text-green-700"
               : message.startsWith("❌")
-              ? "bg-red-50 border-red-500 text-red-700"
-              : "bg-blue-50 border-blue-500 text-blue-700"
-          }`}>
+                ? "bg-red-50 border-red-500 text-red-700"
+                : "bg-blue-50 border-blue-500 text-blue-700"
+            }`}>
             <div className="flex items-center">
               <span className="text-xl mr-2">
                 {message.startsWith("✅") ? "✓" : message.startsWith("❌") ? "✗" : "ℹ"}
@@ -261,6 +278,17 @@ function RequestPayment() {
                 </div>
               </div>
 
+              {Number(amount) > 0 && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                  <p className="text-sm text-indigo-700">
+                    3% charge will apply when paid: {formatCurrency(getCharge(amount))}
+                  </p>
+                  <p className="text-sm font-semibold text-indigo-800 mt-1">
+                    Recipient will receive: {formatCurrency(getNetAmountReceived(amount))}
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
                   📝 Note (Optional)
@@ -310,21 +338,19 @@ function RequestPayment() {
             <div className="flex border-b border-gray-200">
               <button
                 onClick={() => setActiveTab("sent")}
-                className={`flex-1 py-3 text-center font-medium transition-all duration-200 ${
-                  activeTab === "sent"
+                className={`flex-1 py-3 text-center font-medium transition-all duration-200 ${activeTab === "sent"
                     ? "text-purple-600 border-b-2 border-purple-600 bg-purple-50"
                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 📤 Sent ({sentRequests.length})
               </button>
               <button
                 onClick={() => setActiveTab("received")}
-                className={`flex-1 py-3 text-center font-medium transition-all duration-200 ${
-                  activeTab === "received"
+                className={`flex-1 py-3 text-center font-medium transition-all duration-200 ${activeTab === "received"
                     ? "text-purple-600 border-b-2 border-purple-600 bg-purple-50"
                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 📥 Received ({receivedRequests.length})
               </button>
@@ -369,6 +395,12 @@ function RequestPayment() {
                           </div>
                           <div className="pl-10">
                             <p className="text-2xl font-bold text-gray-800">{formatCurrency(req.amount)}</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Charge (3%): {formatCurrency(req.charge ?? getCharge(req.amount))}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Recipient gets: {formatCurrency(req.netAmountReceived ?? getNetAmountReceived(req.amount))}
+                            </p>
                             {req.note && <p className="text-sm text-gray-500 mt-1">Note: {req.note}</p>}
                           </div>
                         </div>
@@ -416,6 +448,12 @@ function RequestPayment() {
                           </div>
                           <div className="pl-10">
                             <p className="text-2xl font-bold text-gray-800">{formatCurrency(req.amount)}</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Charge (3%): {formatCurrency(req.charge ?? getCharge(req.amount))}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Recipient gets: {formatCurrency(req.netAmountReceived ?? getNetAmountReceived(req.amount))}
+                            </p>
                             {req.note && <p className="text-sm text-gray-500 mt-1">Note: {req.note}</p>}
                           </div>
                           {req.status === "pending" && (
@@ -425,7 +463,7 @@ function RequestPayment() {
                                 disabled={loading}
                                 className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-2 px-4 rounded-lg hover:shadow-lg transition-all transform hover:scale-105"
                               >
-                                💳 Pay Now
+                                💳 Pay {formatCurrency(req.amount)}
                               </button>
                               <button
                                 onClick={() => handleReject(req._id)}

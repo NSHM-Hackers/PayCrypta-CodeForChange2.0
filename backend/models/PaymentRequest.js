@@ -15,6 +15,16 @@ const paymentRequestSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    charge: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    netAmountReceived: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     note: {
       type: String,
     },

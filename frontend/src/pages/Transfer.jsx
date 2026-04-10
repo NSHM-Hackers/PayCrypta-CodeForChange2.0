@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import axios from "../utils/axiosConfig";
 import { useNavigate } from "react-router-dom";
 
+const UI_PREVIEW_CHARGE_RATE = 0.03;
+
 function Transfer() {
   const [form, setForm] = useState({
     receiver: "",
@@ -196,7 +198,15 @@ function Transfer() {
     if (!form.amount || !exchangeRate) return "0.00";
     const amount = parseFloat(form.amount);
     if (isNaN(amount)) return "0.00";
-    return (amount * exchangeRate).toFixed(2);
+    const charge = amount * UI_PREVIEW_CHARGE_RATE;
+    const netAmount = amount - charge;
+    return (netAmount * exchangeRate).toFixed(2);
+  };
+
+  const getChargeAmount = () => {
+    const amount = parseFloat(form.amount);
+    if (isNaN(amount)) return "0.00";
+    return (amount * UI_PREVIEW_CHARGE_RATE).toFixed(2);
   };
 
   const formatCurrency = (amount, currency) => {
@@ -378,6 +388,9 @@ function Transfer() {
                       <p className="text-lg font-bold text-orange-600">
                         1 INR = {exchangeRate} {form.toCurrency}
                       </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Total Charge (3%): {formatCurrency(getChargeAmount(), "INR")}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-600">Receipient will Receive</p>
@@ -397,7 +410,7 @@ function Transfer() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p className="text-sm text-blue-700">
-                      Sending within India - No currency conversion needed. Amount remains ₹{form.amount || "0"}
+                      Sending within India - 3% charge: {formatCurrency(getChargeAmount(), "INR")}. Recipient receives {formatCurrency(getConvertedAmount(), "INR")}.
                     </p>
                   </div>
                 </div>

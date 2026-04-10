@@ -10,6 +10,8 @@ import { sendSSEUpdate } from "../sse.js";
 const BLOCKCHAIN_SERVICE_URL =
   process.env.BLOCKCHAIN_SERVICE_URL || "http://127.0.0.1:5071";
 
+const TRANSFER_CHARGE_RATE = 0.03;
+
 const toNumber = (value) => Number(value);
 
 const generateTransactionHash = (
@@ -207,8 +209,10 @@ export const createTransfer = async (senderId, payload) => {
     throw error;
   }
 
+  const charge = Number((numericAmount * TRANSFER_CHARGE_RATE).toFixed(2));
+  const netSourceAmount = Number((numericAmount - charge).toFixed(2));
   const rate = await getConversionRate(fromCurrency, toCurrency);
-  const convertedAmount = Number((numericAmount * rate).toFixed(2));
+  const convertedAmount = Number((netSourceAmount * rate).toFixed(2));
 
   const isFraud = detectFraud(numericAmount);
 
@@ -216,13 +220,14 @@ export const createTransfer = async (senderId, payload) => {
     sender: senderId,
     receiver: receiverUser._id,
     amount: numericAmount,
+    charge,
     fromCurrency,
     toCurrency,
     convertedAmount,
     description: description || "Transfer",
     status: isFraud ? "flagged" : "pending",
     isFraud,
-    fraudReason: isFraud ? "Amount exceeds limit" : null,
+    fraudReason: isFraud ? "Amount flagged fraud" : null,
   });
 
   if (!isFraud) {
@@ -254,6 +259,7 @@ export const createTransfer = async (senderId, payload) => {
       from: populated.sender,
       to: populated.receiver,
       amount: populated.amount,
+      charge: populated.charge,
       fromCurrency: populated.fromCurrency,
       convertedAmount: populated.convertedAmount,
       toCurrency: populated.toCurrency,

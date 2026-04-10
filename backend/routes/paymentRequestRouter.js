@@ -4,6 +4,7 @@ import { submitRequest } from "../services/paymentRequest/submitRequest.js";
 import { getMyRequests } from "../services/paymentRequest/getMyRequests.js";
 import { getRequestsForMe } from "../services/paymentRequest/getRequestsForMe.js";
 import { payRequest } from "../services/paymentRequest/payRequest.js";
+import { rejectRequest } from "../services/paymentRequest/rejectRequest.js";
 
 const router = express.Router();
 
@@ -74,6 +75,19 @@ router.post("/pay/:id", requireAuth, async (req, res) => {
   } catch (error) {
     const statusCode = error.statusCode || 500;
     console.error(`[PaymentRequest] Error paying request: ${error.message}`);
+    res.status(statusCode).json({ message: error.message });
+  }
+});
+
+// Reject a request
+router.post("/reject/:id", requireAuth, async (req, res) => {
+  try {
+    const result = await rejectRequest(req.user.id, req.params.id);
+
+    res.status(200).json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    console.error(`[PaymentRequest] Error rejecting request: ${error.message}`);
     res.status(statusCode).json({ message: error.message });
   }
 });
