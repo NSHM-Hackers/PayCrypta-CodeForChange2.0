@@ -18,6 +18,7 @@
 
 blockchain/contract_config.json
 blockchain/venv/
+backend/uploads
 
 # Editor directories and files
 .vscode/*
