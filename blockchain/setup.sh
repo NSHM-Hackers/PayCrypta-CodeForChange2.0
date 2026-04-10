@@ -31,7 +31,7 @@ sudo npm install -g ganache
 # 6. Install Python libraries in virtual environment
 echo "Installing Python dependencies in virtual environment..."
 pip install --upgrade pip
-pip install flask web3 py-solc-x
+pip install -r requirements.txt
 
 # 7. Pre-install the Solidity compiler version
 echo "Installing Solidity Compiler 0.8.0..."
