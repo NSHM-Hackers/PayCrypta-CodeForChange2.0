@@ -194,15 +194,19 @@ function Dashboard() {
         const transactionId = updatedData.transactionId || updatedData.txId;
         if (!transactionId) return;
 
-        setTransactions(prev => prev.map(tx =>
-          String(tx.id || tx._id) === String(transactionId)
-            ? {
-              ...tx,
-              status: updatedData.status || tx.status,
-              blockchainId: updatedData.blockchainId || tx.blockchainId,
-            }
-            : tx
-        ));
+        if (transactions.some(tx => String(tx.id || tx._id) === String(transactionId))) {
+          setTransactions(prev => prev.map(tx =>
+            String(tx.id || tx._id) === String(transactionId)
+              ? {
+                ...tx,
+                status: updatedData.status || tx.status,
+                blockchainId: updatedData.blockchainId || tx.blockchainId,
+              }
+              : tx
+          ));
+        } else {
+          setTransactions(prev => [updatedData, ...prev]);
+        }
 
         scheduleStatsRefresh();
       } catch (error) {

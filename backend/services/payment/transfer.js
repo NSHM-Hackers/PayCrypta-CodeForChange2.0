@@ -143,7 +143,7 @@ const processBlockchainVerification = async (
 
       await User.findByIdAndUpdate(senderId, { $inc: { balance: tx.amount } });
       await User.findByIdAndUpdate(receiverId, {
-        $inc: { balance: -tx.convertedAmount },
+        $inc: { balance: -tx.netSourceAmount },
       });
     }
 
@@ -223,7 +223,8 @@ export const createTransfer = async (senderId, payload) => {
     charge,
     fromCurrency,
     toCurrency,
-    convertedAmount,
+    // convertedAmount,
+    netSourceAmount,
     description: description || "Transfer",
     status: isFraud ? "flagged" : "pending",
     isFraud,
@@ -235,7 +236,8 @@ export const createTransfer = async (senderId, payload) => {
       $inc: { balance: -numericAmount },
     });
     await User.findByIdAndUpdate(receiverUser._id, {
-      $inc: { balance: convertedAmount },
+      // $inc: { balance: convertedAmount },
+      $inc: { balance: netSourceAmount },
     });
   }
 
