@@ -6,6 +6,38 @@ import { EventSourcePolyfill } from "event-source-polyfill";
 import EditProfile from "../components/EditProfile";
 import ChangePassword from "../components/ChangePassword";
 
+let sharedDashboardEventSource = null;
+let sharedDashboardEventSourceUrl = "";
+
+const getOrCreateDashboardEventSource = (sseUrl, token) => {
+  if (sharedDashboardEventSource && sharedDashboardEventSourceUrl === sseUrl) {
+    return sharedDashboardEventSource;
+  }
+
+  if (sharedDashboardEventSource) {
+    sharedDashboardEventSource.close();
+  }
+
+  sharedDashboardEventSource = new EventSourcePolyfill(sseUrl, {
+    headers: {
+      Authorization: token.startsWith("Bearer ") ? token : `Bearer ${token}`,
+    },
+    heartbeatTimeout: 45000,
+    withCredentials: false,
+  });
+  sharedDashboardEventSourceUrl = sseUrl;
+
+  return sharedDashboardEventSource;
+};
+
+const closeSharedDashboardEventSource = () => {
+  if (sharedDashboardEventSource) {
+    sharedDashboardEventSource.close();
+    sharedDashboardEventSource = null;
+    sharedDashboardEventSourceUrl = "";
+  }
+};
+
 function Dashboard() {
   const [user, setUser] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -48,6 +80,30 @@ function Dashboard() {
   const dropdownRef = useRef(null);
   const profileDropdownRef = useRef(null);
   const websocketRef = useRef(null);
+  const statsRefreshTimerRef = useRef(null);
+
+  const fetchDashboardStats = async () => {
+    const statsRes = await axios.get("/user/stats");
+    const statsData = {
+      totalBalance: Number(statsRes.data?.totalBalance || 0),
+      monthlyIncome: Number(statsRes.data?.monthlyIncome || 0),
+      monthlyExpenses: Number((statsRes.data?.monthlyExpenses ?? statsRes.data?.monthlyExpense) || 0),
+      totalTransactions: Number((statsRes.data?.totalTransactions ?? statsRes.data?.transactionCount) || 0),
+      monthlyTransactions: Number(statsRes.data?.monthlyTransactions || 0),
+    };
+    setStats(statsData);
+  };
+
+  const scheduleStatsRefresh = () => {
+    if (statsRefreshTimerRef.current) {
+      clearTimeout(statsRefreshTimerRef.current);
+    }
+    statsRefreshTimerRef.current = setTimeout(() => {
+      fetchDashboardStats().catch((error) => {
+        console.error("Error refreshing dashboard stats:", error);
+      });
+    }, 250);
+  };
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -68,7 +124,12 @@ function Dashboard() {
     fetchAllData();
 
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      if (statsRefreshTimerRef.current) {
+        clearTimeout(statsRefreshTimerRef.current);
+      }
+    };
   }, []);
 
   // Close dropdown when clicking outside
@@ -103,13 +164,7 @@ function Dashboard() {
 
     console.log(`[SSE] Attempting to connect: ${sseUrl}`);
 
-    const eventSource = new EventSourcePolyfill(sseUrl, {
-      headers: {
-        Authorization: token.startsWith("Bearer ") ? token : `Bearer ${token}`,
-      },
-      heartbeatTimeout: 45000,
-      withCredentials: false,
-    });
+    const eventSource = getOrCreateDashboardEventSource(sseUrl, token);
 
     const handleTransactionStatusUpdate = (event) => {
       try {
@@ -126,6 +181,8 @@ function Dashboard() {
             }
             : tx
         ));
+
+        scheduleStatsRefresh();
       } catch (error) {
         console.error('[SSE] Error parsing transaction status message:', error);
       }
@@ -146,6 +203,8 @@ function Dashboard() {
             }
             : tx
         ));
+
+        scheduleStatsRefresh();
       } catch (error) {
         console.error('[SSE] Error parsing transaction received message:', error);
       }
@@ -173,7 +232,7 @@ function Dashboard() {
     eventSource.addEventListener('transaction_received', handleTransactionReceived);
     eventSource.addEventListener('kyc_status_updated', handleKycStatusUpdate);
 
-    eventSource.onmessage = (event) => {
+    const handleDefaultMessage = (event) => {
       try {
         const updatedData = JSON.parse(event.data);
         if (updatedData.type === 'transaction_status_updated') {
@@ -188,15 +247,22 @@ function Dashboard() {
       }
     };
 
-    eventSource.onerror = (error) => {
+    const handleSseError = (error) => {
       console.error('[SSE] Connection error:', error);
     };
+
+    eventSource.addEventListener('message', handleDefaultMessage);
+    eventSource.addEventListener('error', handleSseError);
 
     console.log('[SSE] Connection opened');
 
     return () => {
-      eventSource.close();
-      console.log('[SSE] Connection closed');
+      eventSource.removeEventListener('transaction_status_updated', handleTransactionStatusUpdate);
+      eventSource.removeEventListener('transaction_received', handleTransactionReceived);
+      eventSource.removeEventListener('kyc_status_updated', handleKycStatusUpdate);
+      eventSource.removeEventListener('message', handleDefaultMessage);
+      eventSource.removeEventListener('error', handleSseError);
+      console.log('[SSE] Dashboard listeners detached');
     };
   }, [user]);
 
@@ -285,15 +351,7 @@ function Dashboard() {
       // Save to localStorage for persistence
       localStorage.setItem("dashboardUser", JSON.stringify(userData));
 
-      const statsRes = await axios.get("/user/stats");
-      const statsData = {
-        totalBalance: Number(statsRes.data?.totalBalance || 0),
-        monthlyIncome: Number(statsRes.data?.monthlyIncome || 0),
-        monthlyExpenses: Number((statsRes.data?.monthlyExpenses ?? statsRes.data?.monthlyExpense) || 0),
-        totalTransactions: Number((statsRes.data?.totalTransactions ?? statsRes.data?.transactionCount) || 0),
-        monthlyTransactions: Number(statsRes.data?.monthlyTransactions || 0),
-      };
-      setStats(statsData);
+      await fetchDashboardStats();
 
       try {
         const kycRes = await axios.get("/kyc/status");
@@ -339,6 +397,7 @@ function Dashboard() {
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("dashboardUser");
+      closeSharedDashboardEventSource();
       navigate("/");
     }
   };
@@ -386,6 +445,7 @@ function Dashboard() {
     switch (status?.toLowerCase()) {
       case "success":
       case "completed":
+      case "verified":
         return {
           text: "Verified on Blockchain ✓",
           color: "bg-green-100 text-green-700",

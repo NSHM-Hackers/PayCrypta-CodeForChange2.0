@@ -21,13 +21,16 @@ def record_transaction():
 
     try:
         # Transact with the already-deployed instance
+        print(f"[Blockchain] Recording transaction with hash: {incoming_hash} and localTxId: {local_tx_id}")
         tx_hash = contract_instance.functions.recordHash(
             incoming_hash, 
             local_tx_id
         ).transact({'from': account})
 
+        print(f"[Blockchain] Transaction sent with hash: {tx_hash.hex()}. Waiting for confirmation...")
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
+        print(f"[Blockchain] Transaction confirmed in block {receipt.blockNumber} with hash: {receipt.transactionHash.hex()}")
         return jsonify({
             "status": "success",
             "blockchain_id": receipt.transactionHash.hex(),
