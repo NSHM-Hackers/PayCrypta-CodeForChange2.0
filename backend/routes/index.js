@@ -4,6 +4,7 @@ import { sseRoute } from "../services/sse.js";
 import authRouter from "./authRouter.js";
 import userRouter from "./userRouter.js";
 import kycRouter from "./kycRouter.js";
+import paymentRouter from "./paymentRouter.js";
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.get("/sseupdates", requireAuth, sseRoute);
 router.use("/auth", authRouter);
 router.use("/user", userRouter);
 router.use("/kyc", kycRouter);
+router.use("/payment", paymentRouter);
 
 export default router;
