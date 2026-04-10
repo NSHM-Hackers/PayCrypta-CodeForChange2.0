@@ -64,6 +64,10 @@ const processBlockchainVerification = async (
       tx.createdAt.getTime(),
     );
 
+    console.log(
+      `[Blockchain] Adding transaction ${transactionId} with hash ${transactionHash}`,
+    );
+
     const flaskResponse = await axios.post(
       `${BLOCKCHAIN_SERVICE_URL}/record-transaction`,
       {
@@ -73,7 +77,15 @@ const processBlockchainVerification = async (
       { timeout: 30000 },
     );
 
+    console.log(
+      `[Blockchain] Transaction ${transactionId} recorded with blockchain ID ${flaskResponse.data.blockchain_id}`,
+    );
+
     const blockchainId = flaskResponse.data.blockchain_id;
+
+    console.log(
+      `[Blockchain] Updating transaction ${transactionId} status to verified with blockchain ID ${blockchainId}`,
+    );
 
     await Transaction.findByIdAndUpdate(tx._id, {
       status: "verified",
@@ -81,6 +93,10 @@ const processBlockchainVerification = async (
       blockchainConfirmedAt: new Date(),
       failureReason: null,
     });
+
+    console.log(
+      `[Blockchain] Transaction ${transactionId} status updated to verified in database`,
+    );
 
     sendSSEUpdate(
       senderId,
@@ -93,6 +109,10 @@ const processBlockchainVerification = async (
       "transaction_status_updated",
     );
 
+    console.log(
+      `[SSE] Sent transaction_status_updated event to sender ${senderId} for transaction ${transactionId}`,
+    );
+
     sendSSEUpdate(
       receiverId,
       {
@@ -102,6 +122,10 @@ const processBlockchainVerification = async (
         status: "verified",
       },
       "transaction_received",
+    );
+
+    console.log(
+      `[SSE] Sent transaction_received event to receiver ${receiverId} for transaction ${transactionId}`,
     );
   } catch (error) {
     const tx = await Transaction.findById(transactionId);
