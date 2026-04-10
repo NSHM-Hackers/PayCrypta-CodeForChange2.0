@@ -45,3 +45,7 @@ export const getExchangeRate = async (targetCurrency) => {
   }
   return rate;
 };
+
+export const getAllExchangeRates = async () => {
+  return await fetchExchangeRates();
+};

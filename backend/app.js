@@ -2,12 +2,14 @@ import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import { createServer } from "http";
 
 dotenv.config();
 
 import cors from "cors";
 import apiRouter from "./routes/index.js";
 import { connectDB } from "./utils/db.js";
+import { initializeWebSocketServer } from "./utils/websocket.js";
 
 // The __dirname variable does not work in ES modules, so we need to create it manually
 const __filename = fileURLToPath(import.meta.url);
@@ -34,9 +36,15 @@ app.get("/{*path}", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 });
 
-// Example expressjs server listening on port 8080
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+// Create HTTP server and integrate Express
+const server = createServer(app);
+
+// Initialize WebSocket server for exchange rates
+initializeWebSocketServer(server);
+
+// Server listening on port 8000
+const PORT = process.env.PORT || 8000;
+server.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
   console.log("Press Ctrl+C to quit.");
 });
