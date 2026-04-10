@@ -16,6 +16,9 @@
 **/.env.*
 !**/.env.example
 
+blockchain/contract_config.json
+blockchain/venv/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
