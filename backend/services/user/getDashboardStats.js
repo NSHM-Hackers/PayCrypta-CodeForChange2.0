@@ -14,7 +14,7 @@ export const getUserDashboardStats = async (userId) => {
 
   const allTransactions = await Transaction.find({
     $or: [{ sender: userId }, { receiver: userId }],
-    status: "completed",
+    status: { $in: ["completed", "verified"] },
   });
 
   const totalTransactions = allTransactions.length;

@@ -1,5 +1,5 @@
 // pages/Transfer.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "../utils/axiosConfig";
 import { useNavigate } from "react-router-dom";
 
@@ -17,6 +17,8 @@ function Transfer() {
   const [exchangeRates, setExchangeRates] = useState({ INR: 1 });
   const [animate, setAnimate] = useState(false);
   const [recentTransfers, setRecentTransfers] = useState([]);
+  const transferWsRef = useRef(null);
+  const subscribedCurrencyRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -27,18 +29,38 @@ function Transfer() {
     setupExchangeRateWebSocket();
 
     return () => {
-      if (window.__transferWs && window.__transferWs.readyState === WebSocket.OPEN) {
-        window.__transferWs.close();
+      if (transferWsRef.current && transferWsRef.current.readyState === WebSocket.OPEN) {
+        transferWsRef.current.close();
       }
-      window.__transferWs = null;
+      transferWsRef.current = null;
+      subscribedCurrencyRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (form.fromCurrency && form.toCurrency) {
-      fetchExchangeRate();
+    if (form.toCurrency !== "INR") {
+      subscribeToCurrency(form.toCurrency);
     }
-  }, [form.fromCurrency, form.toCurrency, exchangeRates]);
+  }, [form.toCurrency]);
+
+  useEffect(() => {
+    if (form.toCurrency === "INR") {
+      setExchangeRate(1);
+      return;
+    }
+
+    const rate = Number(exchangeRates[form.toCurrency] || 0);
+    setExchangeRate(rate || null);
+  }, [form.toCurrency, exchangeRates]);
+
+  const subscribeToCurrency = (currency) => {
+    const ws = transferWsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (subscribedCurrencyRef.current === currency) return;
+
+    ws.send(JSON.stringify({ type: "SUBSCRIBE", currency }));
+    subscribedCurrencyRef.current = currency;
+  };
 
   const setupExchangeRateWebSocket = () => {
     try {
@@ -47,10 +69,10 @@ function Transfer() {
       const wsUrl = `${wsProtocol}://${baseURL.replace(/^https?:\/\//, '')}/exchange-rates`;
 
       const ws = new WebSocket(wsUrl);
-      window.__transferWs = ws;
+      transferWsRef.current = ws;
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'SUBSCRIBE', currency: form.toCurrency }));
+        subscribeToCurrency(form.toCurrency);
       };
 
       ws.onmessage = (event) => {
@@ -95,25 +117,6 @@ function Transfer() {
       setRecentTransfers(res.data.transactions || []);
     } catch (error) {
       console.error("Error fetching recent transfers:", error);
-    }
-  };
-
-  const fetchExchangeRate = async () => {
-    try {
-      if (form.toCurrency === "INR") {
-        setExchangeRate(1);
-        return;
-      }
-
-      const ws = window.__transferWs;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'SUBSCRIBE', currency: form.toCurrency }));
-      }
-
-      const rate = Number(exchangeRates[form.toCurrency] || 0);
-      setExchangeRate(rate);
-    } catch (error) {
-      console.error("Error fetching exchange rate:", error);
     }
   };
 
