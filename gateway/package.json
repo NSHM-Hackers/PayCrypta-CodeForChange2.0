@@ -1,0 +1,22 @@
+{
+  "name": "paycrypta-gateway",
+  "version": "1.0.0",
+  "description": "gateway for paycrypta",
+  "main": "sample_gateway.js",
+  "type": "module",
+  "scripts": {
+    "start": "node sample_gateway.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.4.1",
+    "ws": "^8.20.0"
+  }
+}
