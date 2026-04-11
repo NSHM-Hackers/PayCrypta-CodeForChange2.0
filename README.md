@@ -13,17 +13,25 @@ Our goal with this project is to create a Payment App + Gateway that will be com
 ## Tech Stack
 
 Backend: ExpressJs app served by NodeJs, Python flask app for adding transaction to blockchain
+
 Fronted: Vite+ReactJs SPA built and served as static content by the ExpressJs app
+
 Database: Mongodb cluster
+
 Nginx: Acting as a reverse proxy for the ExpressJs app and handles SSL
+
 Deployed at: [Digital Ocean Droplet](https://paycrypta.rahulraman.in ) (for the duration of hackathon)
 
 ## External Library & APIs
 
 Ganache: Simulating Ethereum blockchain network
+
 Python requirements: web3, py-solc-x, flask
+
 backend npm libraries: axios, bcryptjs, cors, dotenv, express, jsonwebtoken, mongoose, ws
+
 frontend npm libraries: antd, axios, chart.js, event-source-polyfill, react, react-chartjs-2, react-dom, react-router-dom
+
 API from <https://www.exchangerate-api.com/>
 
 ## Setup to run locally
