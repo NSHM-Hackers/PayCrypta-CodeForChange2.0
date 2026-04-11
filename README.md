@@ -30,7 +30,7 @@ Python requirements: web3, py-solc-x, flask
 
 backend npm libraries: axios, bcryptjs, cors, dotenv, express, jsonwebtoken, mongoose, ws
 
-frontend npm libraries: antd, axios, chart.js, event-source-polyfill, react, react-chartjs-2, react-dom, react-router-dom
+frontend npm libraries: antd, axios, chart.js, event-source-polyfill, vite, react, react-chartjs-2, react-dom, react-router-dom, tailwindcss, postcss, autoprefixer
 
 API from <https://www.exchangerate-api.com/>
 
