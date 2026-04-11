@@ -5,7 +5,7 @@ import { readFile, writeFile } from "fs/promises";
 const app = express();
 app.use(express.json());
 
-const PORT = Number(process.env.PORT || 8081);
+const PORT = Number(process.env.PORT || 8082);
 
 const merchants = new Map();
 const payments = new Map();
@@ -90,7 +90,10 @@ function isFutureExpiry(mmYY) {
   const year = 2000 + Number(match[2]);
   const now = new Date();
 
-  return year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1);
+  return (
+    year > now.getFullYear() ||
+    (year === now.getFullYear() && month >= now.getMonth() + 1)
+  );
 }
 
 function luhnCheck(cardNumber) {
@@ -125,12 +128,16 @@ function validateCreatePayload(body) {
   if (!body.merchantId || !/^m_[a-zA-Z0-9_\-]{3,30}$/.test(body.merchantId)) {
     return "merchantId must look like m_store123";
   }
-  if (!body.orderId || String(body.orderId).length < 3) return "orderId is required";
-  if (!body.customerName || String(body.customerName).trim().length < 2) return "customerName is required";
-  if (!body.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email))) return "Valid email is required";
+  if (!body.orderId || String(body.orderId).length < 3)
+    return "orderId is required";
+  if (!body.customerName || String(body.customerName).trim().length < 2)
+    return "customerName is required";
+  if (!body.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email)))
+    return "Valid email is required";
 
   const paise = amountInPaise(body.amount);
-  if (!Number.isFinite(paise) || paise < 100) return "Amount must be at least INR 1.00";
+  if (!Number.isFinite(paise) || paise < 100)
+    return "Amount must be at least INR 1.00";
 
   if (!["card", "netbanking"].includes(body.paymentMethod)) {
     return "paymentMethod must be card or netbanking";
@@ -138,9 +145,11 @@ function validateCreatePayload(body) {
 
   if (body.paymentMethod === "card") {
     if (!luhnCheck(body.cardNumber)) return "Invalid card number";
-    if (!isFutureExpiry(body.cardExpiry)) return "cardExpiry must be MM/YY and not expired";
+    if (!isFutureExpiry(body.cardExpiry))
+      return "cardExpiry must be MM/YY and not expired";
     if (!/^\d{3,4}$/.test(String(body.cardCvv || ""))) return "Invalid CVV";
-    if (!body.cardHolder || String(body.cardHolder).trim().length < 2) return "cardHolder is required";
+    if (!body.cardHolder || String(body.cardHolder).trim().length < 2)
+      return "cardHolder is required";
   }
 
   if (body.paymentMethod === "netbanking") {
@@ -172,7 +181,9 @@ function routePayment(method, details) {
       network,
       bankReference: makeId("cardref"),
       finalStatus: approved ? STATUS.SUCCESS : STATUS.FAILED,
-      message: approved ? "Card authorized and captured" : "Card declined by issuer",
+      message: approved
+        ? "Card authorized and captured"
+        : "Card declined by issuer",
     };
   }
 
@@ -181,14 +192,18 @@ function routePayment(method, details) {
     network: "NETBANKING",
     bankReference: makeId("nbref"),
     finalStatus: approved ? STATUS.SUCCESS : STATUS.FAILED,
-    message: approved ? "Netbanking payment successful" : "Bank authentication failed",
+    message: approved
+      ? "Netbanking payment successful"
+      : "Bank authentication failed",
   };
 }
 
 app.post("/api/payments/create", async (req, res) => {
   const idempotencyKey = req.header("x-idempotency-key");
   if (!idempotencyKey) {
-    return res.status(400).json({ ok: false, error: "Missing x-idempotency-key header" });
+    return res
+      .status(400)
+      .json({ ok: false, error: "Missing x-idempotency-key header" });
   }
 
   if (idempotency.has(idempotencyKey)) {
@@ -275,7 +290,8 @@ app.post("/api/payments/create", async (req, res) => {
 
 app.get("/api/payments/:paymentId", (req, res) => {
   const payment = payments.get(req.params.paymentId);
-  if (!payment) return res.status(404).json({ ok: false, error: "Payment not found" });
+  if (!payment)
+    return res.status(404).json({ ok: false, error: "Payment not found" });
   return res.status(200).json({ ok: true, payment });
 });
 
